@@ -90,17 +90,27 @@ public final class GeyserSkinApi {
                 // Geyser's raw renderer endpoint serves the converted PNG.
                 String textureUrl = API + "/render/raw/" + textureId;
 
-                // Unique client-side texture location. The actual PNG is downloaded by
-                // Minecraft's normal skin texture machinery.
-                var id = net.minecraft.resources.Identifier.fromNamespaceAndPath(
-                        "geyser_skins", "bedrock/" + uuid.toString().replace("-", ""));
+                HttpResponse<byte[]> textureResponse = HTTP.send(
+                    HttpRequest.newBuilder(URI.create(textureUrl))
+                    .header("Accept","image/png" )
+                    .header("User-Agent", "GeyserSkins/1.0.0 (Minecraft Fabric)")
+                    .GET()
+                    .build(),
+                    HttpResponse.BodyHandlers.ofByteArray()
+                );
+
+                LOGGER.info(
+                    "Geyser texture response: status={}, contentType={}, byte={}",
+                    textureResponse.statusCode(),
+                    textureResponse.headers().firstValue("Content-Type").orElse("<none>"),
+                    textureResponse.body().length
+                );
+
+                var id = net.minecraft.resources.Identifier.fromNamespaceAndPath("geyser_skins", "bedrock/" + uuid.toString().replace("-", ""));
 
                 ClientAsset.Texture body = new ClientAsset.DownloadedTexture(id, textureUrl);
-                PlayerModelType model = steve ? PlayerModelType.WIDE : PlayerModelType.WIDE;
+                PlayerModelType model = steve ? PlayerModelType.WIDE : PlayerModelType.SLIM;
 
-                // Geyser's is_steve field is about the converted model fallback.
-                // The converted Bedrock skin itself may be slim; until Geyser exposes
-                // that geometry through this endpoint, WIDE is the safe default.
                 PlayerSkin custom = PlayerSkin.insecure(body, null, null, model);
                 SKINS.put(uuid, custom);
 
